@@ -1,0 +1,108 @@
+---
+title: "C. Diff and Renal Failure Journal, Week 1"
+author: "Brian Detweiler"
+date: "January 20, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## At a glance
+
+ * Opened up the old code base
+ * Decided to reinitialize the entire database from scratch to make this work reproducible
+ * Will do all data manipulation entirely with Tidyr in sequential scripts
+ * Will also try to add unit tests where applicable
+ * Will narrow scope of article
+
+## Digging up the dead
+
+Last year, I had agreed to turn my graduate project into a publishable journal article following graduation. 
+After a short break, well, I took a little more of a break. And then a little more. Before I knew it, a year
+had gone by and still no paper.
+
+So what happened? I would label this a case of burnout. 2.5 years of grad school plus full time work made for
+an interesting, but intense time that I think eventually took its toll. 
+
+### Recharging motivation
+
+Dealing with this lack of motivation has felt like trying to break through a wall. When I started studying 
+data science, I was fully charged, and couldn't get enough of it. When the burnout hit, I didn't want to
+read or discuss a single thing about data science. It was like the light had turned off.
+
+Think of it as writer's block, but for intellectual curiosity. Now, a year later, I would say I am past
+the burnout stage, but still struggling to get a footing. So how do we break through this wall? My solution
+is to treat this challenge like any other data science challenge - by beginning with the end in mind and 
+keeping myself accountable.
+
+Hence the return of weekly journaling. By requiring myself to journal my progress at the end of each week
+(with the exception of the next two weeks because I'll be off to Phoenix, Tucson, Miami Beach, and Haiti),
+it forces me to look at what has been done (or not done) for the week. It's a measurement. A goal is nothing
+without metrics. "Be rich and famous" doesn't mean anything. "Amass $10 million and land a starring role in
+a multi-million dollar movie in the next five years" is concrete and actionable. Not easy, of course, but
+nothing worth doing is.
+
+My goals are more modest: 
+
+> Turn my graduate studies into an article to be published by a peer reviewed medical journal. Build my results on reproducible, open source work.
+
+It is the the last sentence that makes things a little more difficult. Although I tried to keep things reproducible 
+in my original work, there were points along the line where I cleaned data by hand. Or executed a line of R and then
+deleted it without thinking. Those one-off steps have caused the whole thing to be impossible to easily reproduce.
+
+Furthermore, coming from software engineering, it is sometimes exhilarating to not be bound by the rigors of compiled code.
+Eschewing unit tests because "hey, this is data science, not software engineering" has a certain devil-may-care air about it
+that is like a sugar rush. But just like a sugar rush, there's an inevitable crash (pun intended). Therefore, I do intend
+to try and test as much of my code as possible. It does get a little difficult, particularly with an ETL task. But I want to
+use this opportunity to do data science the right way. 
+
+## Starting over
+
+To accomplish these goals, I need to more or less start over. It won't take nearly as long as the first time, because I know what I'm doing
+and I know what I'm after. But the way I go about it will differ. It will be done in 3 steps.
+
+1. ETL
+2. Modeling
+3. Writing
+
+### 1. ETL
+
+Extract-Transform-Load, or ETL, is the phase of data science that often takes the longest. It certainly did the first time around.
+But I am missing a few data elements, and therefore a new ETL must happen. If I had made it reproducible the first time, this
+wouldn't take long, just processing time. But this is my chance to rectify the situation.
+
+The ETL will happen in steps, each broken into a different R script. The scripts will be named with a number indicating the step, so
+they can simply be executed in order to rebuild the database. 
+
+### 2. Modeling
+
+Modeling is the touchiest phase, and the one that could receive most of the criticism. It is therefore important that it
+is reproducible so reviewers can see exactly how I'm getting my results. When I gave my graduate presentation, there were
+questions from faculty into why I had not used a non-linear *Generalized Addative Model*, or GAM. I stumbled at the time, 
+but afterward remembered that I was not interested in prediction, but rather in description. I am not trying to predict an
+outcome, but rather describe a phenomenon, to which end, a logistic regression is better suited. However, there may
+be room for improvement here and this is where I'd like to focus most of my attention.
+
+### 3. Writing
+
+Journals may have different standards for publication. Some have word count minimums and maximums. Some don't allow figures or have a limit
+on how many can be used and the resolution, thereby restricting the level of detail that can be included. I used a lot of figures in my
+presentation, so this will need to be pared. And my focus needs to be narrowed. In the presentation, I had focused on two aspects:
+
+ 1. The trends of C. *diff* over the course of a 14 year period, from 2001-2014
+ 2. The relationship of C. *diff* on in-patients with Renal Failure comorbidities
+ 
+I think it would best serve me to choose one of those topics and focus exclusively on it.
+
+## A cleaner approach
+
+While doing all of this, I want to follow R best practices and write my data manipulation exclusively in Tidyr. Tidy data is the way 
+of the world, and a mish-mash of base R dollar signs and `select()` and `filter()` statements is an unprofessional and ugly combination.
+I've always been a strong believer in consistency, and this is no exception. Sometimes I catch myself throwing in a quick dollar sign 
+and a `which()` function to transform data, rather than using `mutate()`. This does nothing but adds confusion and inconsistency to the code.
+
+And finally, I'll be looking to add some testing where it fits, to bring a more robust, software engineering oriented approach to my data science.
+
+My next update will be February 10th.

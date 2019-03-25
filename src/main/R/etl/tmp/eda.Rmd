@@ -1,0 +1,100 @@
+---
+title: "eda.Rmd"
+author: "Brian Detweiler"
+date: "December 25, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.height = 4, fig.width = 4, fig.align = 'center')
+```
+
+## R Markdown
+
+```{r, cache=TRUE}
+# setwd('/home/bdetweiler/src/Data_Science/stat-8960-capstone-project')
+
+library("devtools")
+library('MonetDBLite')
+library('MonetDB.R')
+library('dplyr')
+library('dbplyr')
+library('DBI')
+
+```
+
+
+```{r, warning=FALSE}
+# MonetDB connection to a permanent file
+# Call the below line if you get an error about connecting
+MonetDBLite::monetdblite_shutdown()
+con <- DBI::dbConnect(MonetDBLite::MonetDBLite(), "data/nis_db")
+
+cdi.q <- "SELECT *
+            FROM nis,
+                 nis_code
+           WHERE (
+                    nis.DX1           = '00845'           AND 
+                    nis.PR1           = nis_code.nis_code AND
+                    nis_code.nis_type = 'i9prf'
+                 )
+        ORDER BY nis_code"
+
+              #OR 
+                  #nis.DX2  = '00845' OR
+                  #nis.DX3  = '00845' OR
+                  #nis.DX4  = '00845' OR
+                  #nis.DX5  = '00845' OR
+                  #nis.DX6  = '00845' OR
+                  #nis.DX7  = '00845' OR
+                  #nis.DX8  = '00845' OR
+                  #nis.DX9  = '00845' OR
+                  #nis.DX10 = '00845' OR
+                  #nis.DX11 = '00845' OR
+                  #nis.DX12 = '00845' OR
+                  #nis.DX13 = '00845' OR
+                  #nis.DX14 = '00845' OR
+                  #nis.DX15 = '00845' OR
+                  #nis.DX16 = '00845' OR
+                  #nis.DX17 = '00845' OR
+                  #nis.DX18 = '00845' OR
+                  #nis.DX19 = '00845' OR
+                  #nis.DX20 = '00845' OR
+                  #nis.DX21 = '00845' OR
+                  #nis.DX22 = '00845' OR
+                  #nis.DX23 = '00845' OR
+                  #nis.DX24 = '00845' OR
+                  #nis.DX25 = '00845') 
+                   
+
+cdiff <- DBI::dbGetQuery(con, cdi.q)
+
+cdiff.sub <- cdiff %>% select(dx1, pr1, prccs1) %>% filter(prccs1 == '91')
+cdiff.sub
+nis.cdiff <- DBI::dbGetQuery(con, "select * from nis where nis_key = '04200110312351'")
+DBI::dbGetQuery(con, "select * from nis_code where nis_code in (select pr2 from nis where nis_key = '04200110312351')")
+
+
+cdiff$pr1[which(cdiff$nis_year == 2014)]
+hist(cdiff$nis_year)
+
+pr <- cdiff$pr1
+pr <- c(pr, cdiff$pr2)
+pr <- c(pr, cdiff$pr3)
+pr <- c(pr, cdiff$pr4)
+pr <- c(pr, cdiff$pr5)
+pr <- c(pr, cdiff$pr6)
+pr <- c(pr, cdiff$pr7)
+pr <- c(pr, cdiff$pr8)
+pr <- c(pr, cdiff$pr9)
+pr <- c(pr, cdiff$pr10)
+pr <- c(pr, cdiff$pr11)
+pr <- c(pr, cdiff$pr12)
+pr <- c(pr, cdiff$pr13)
+pr <- c(pr, cdiff$pr14)
+pr <- c(pr, cdiff$pr15)
+
+pr <- unique(pr)
+
+length(pr)
+```

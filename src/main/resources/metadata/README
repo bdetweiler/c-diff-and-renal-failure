@@ -1,0 +1,6 @@
+# Description
+These files describe the structure of the raw NIS and NRD CSV files and allow R to read them in with correct and consistent header names and data types.
+Empty lines are significant. All headers were initially combined to create a union, and then these were broken out by year so missing columns were 
+left as blank lines.
+
+All of this was drived by manual work which can be found in `headers.xlsx`. 

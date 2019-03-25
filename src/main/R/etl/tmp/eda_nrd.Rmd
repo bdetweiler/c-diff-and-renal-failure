@@ -1,0 +1,88 @@
+---
+title: "eda.Rmd"
+author: "Brian Detweiler"
+date: "December 25, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.height = 4, fig.width = 4, fig.align = 'center')
+```
+
+## R Markdown
+
+```{r, cache=TRUE}
+# setwd('/home/bdetweiler/src/Data_Science/stat-8960-capstone-project')
+
+library('devtools')
+library('MonetDB.R')
+#install.packages('MonetDBLite')
+library('MonetDBLite')
+library('dplyr')
+library('dbplyr')
+library('reshape2')
+library('DBI')
+library('ggplot2')
+library('scales')
+library('tidyverse')
+library('survey')
+```
+
+
+```{r, warning=FALSE, cache=TRUE}
+# MonetDB connection to a permanent file
+# Call the below line if you get an error about connecting
+# MonetDBLite::monetdblite_shutdown()
+readm.90 <- read_csv('data/cdiff-readmissions-90-day-window.csv')
+readm.90 <- filter(readm.90, stratum != '756')
+head(readm.90)
+cdiff.design <- svydesign(ids = ~cluster, 
+                          data = readm.90, 
+                          weights = ~weight, 
+                          strata = ~stratum)
+
+m <- svyglm(readmitted~age.start +
+                       #female +
+                       #aweekend +
+                       #pay1 +
+                       #cm_aids +
+                       #cm_alcohol +
+                       #cm_anemdef +
+                       #cm_arth +
+                       #cm_bldloss +
+                       #cm_chf +
+                       #cm_chrnlung +
+                       #cm_coag +
+                       #cm_depress +
+                       #cm_dm +
+                       #cm_dmcx +
+                       #cm_drug +
+                       #cm_htn_c +
+                       #cm_hypothy +
+                       #cm_liver +
+                       #cm_lymph +
+                       #cm_lytes +
+                       #cm_mets +
+                       #cm_neuro +
+                       #cm_obese +
+                       #cm_para +
+                       #cm_perivasc +
+                       #cm_psych +
+                       #cm_pulmcirc +
+                       cm_renlfail,
+                       #cm_tumor +
+                       #cm_ulcer +
+                       #cm_valve +
+                       #cm_wghtloss,
+            design=as.svrepdesign(cdiff.design), 
+            family=quasibinomial, 
+            return.replicates=TRUE)
+summary(m)
+
+#cdiff %>% 
+  #ggplot(aes(age.end, readmitted)) +
+    #geom_bin2d(bins = 30) +
+    #geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+    #geom_point(data = pred.df, aes(x=Age, y=Prob)) +
+    #labs(title="Logistic Regression of Readmission by Age", x="Age at last admission", y="Readmitted (1 = Yes, 0 = No)")
+```
