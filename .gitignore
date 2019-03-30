@@ -234,7 +234,11 @@ data/nrd_db/
 .~lock.*
 
 *.zip
-data/NRD*
+data/NRD*/*.zip
+data/NRD*/*.CSV
+data/NRD*/*.csv
+data/NRD*/*.pdf
+data/NRD*/*.rtf
 data/cc*
 
 *split*
