@@ -1,42 +1,67 @@
-library('MonetDB.R')
-install.packages('MonetDBLite')
+################################################################################################
+# Copyright (c) 2019 Brian Detweiler
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# About: 
+# Import the NRD CSV files into MonetDB.
+################################################################################################
+
+# install.packages( c("MonetDB.R", "MonetDBLite") , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
 library('MonetDBLite')
-library('dplyr')
+library('tidyverse')
 library('DBI')
 library('beepr')
 
+source('src/main/R/util/verify-working-directory.R')
 
-#setwd('/home/bdetweiler/src/Data_Science/stat-8960-capstone-project/')
-
-# We have generated the headers and renamed a few manually - see data/headers.xlsx
-
-# First, get the line count and divide it by 4:
-#
-# wc -l NRD_2010_Core_V2.CSV | awk '{print $1"/4"}' | bc
-# 3476902
-# 
-# The files are too large when merging, so we have to split them first. We'll also get rid of the V2 to keep things consistent.
-#
-# split -l3476902 -d NRD_2010_Core_V2.CSV NRD_2010_Core_split
-# split -l3476902 -d NRD_2010_DX_PR_GRPS_V2.CSV NRD_2010_DX_PR_GRPS_split_
-# split -l3476902 -d NRD_2010_Severity_V2.CSV NRD_2010_Severity_split_
-
-# This produces split files 01-04 for each CSV
+tryCatch({
+  path <- getwd()
+  verify_wd(path, "c-diff-and-renal-failure")
+}, warning = function(e) {
+  stop("Ensure working directory is set to `c-diff-and-renal-failure`.")
+}, error = function(e) {
+  stop("Ensure working directory is set to `c-diff-and-renal-failure`.")
+})
 
 #MonetDBLite::monetdblite_shutdown()
 con <- DBI::dbConnect(MonetDBLite::MonetDBLite(), "data/nrd_db")
 
-# TODO: 2014 when we get the data!
-years <- seq(from = 2010, to = 2015, by = 1)
+#####################################################################################
+#                               HOSPITAL  
+#####################################################################################
+
+nrdyears <- system("ls data | egrep 'NRD[1-2][0-9][0-9][0-9]'", intern=TRUE)
+years <- gsub("NRD", "", nrdyears)
 
 for (year in years) {
-  print(paste("Processing year", year))
   
-  data.types.file <- paste0('data/r-data-types-nrd-hospital-', year, '.txt')
+  print(paste("Processing year", year))
+
+  nrdyear <- paste0('NRD', year) 
+   
+  data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-hospital-', year, '.txt')
   data.types <- readLines(data.types.file)
   data.types <- data.types[which(data.types != "")]
-  
-  headers.file <- paste0('data/headers-nrd-hospital-', year, '.txt')
+  data.types <- paste0(substr(data.types, start = 0, stop = 1), collapse="")
+
+  headers.file <- paste0('src/main/resources/metadata/headers-nrd-hospital-', year, '.txt')
   headers <- readLines(headers.file)
   headers <- headers[which(headers != "")]
 
@@ -47,12 +72,13 @@ for (year in years) {
   } else {
     version <- ''
   }
-  nrd.hospital.file <- paste0('data/NRD', year, '/NRD_', year, '_Hospital', version, '.CSV')
 
-  nrd.hosp <- read.csv(nrd.hospital.file, 
-                       stringsAsFactors = FALSE, 
-                       col.names = headers,
-                       colClasses = data.types)
+  nrd.hospital.file <- paste0('data/', nrdyear, '/NRD_', year, '_Hospital', version, '.CSV')
+  nrd.hospital.file
+  nrd.hosp <- read_csv(nrd.hospital.file, 
+                       col_types = data.types,
+                       col_names = headers)
+
   nrd.hosp <- nrd.hosp %>% 
     select(hosp_nrd,
            hosp_bedsize, 
@@ -70,92 +96,89 @@ for (year in years) {
   DBI::dbWriteTable(con, "nrd_hospital", nrd.hosp, append=TRUE, row.names = FALSE)
 }
 
-
-all.headers <- readLines('data/all-headers-nrd.txt')
-all.headers <- all.headers[which(all.headers != "")]
-
-# XXX: We'll process 2015 separately since they changed everything around that year
-years <- seq(from = 2010, to = 2013, by = 1)
+all.headers <- names(DBI::dbGetQuery(con, "SELECT * FROM nrd LIMIT 1"))
 
 for (year in years) {
 
+  nrdyear <- paste0('NRD', year) 
+
+  # XXX: We'll process 2015 separately since they changed everything around that year
+  if (year == 2015) {
+    next
+  }
+    
   print(paste("Processing year", year))
   
-  data.types.file <- paste0('data/r-data-types-nrd-core-', year, '.txt')
+  data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-core-', year, '.txt')
   data.types <- readLines(data.types.file)
   data.types <- data.types[which(data.types != "")]
+  data.types <- paste0(substr(data.types, start = 0, stop = 1), collapse="")
 
   # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-  headers.file <- paste0('data/headers-nrd-core-', year, '.txt')
+  headers.file <- paste0('src/main/resources/metadata/headers-nrd-core-', year, '.txt')
   headers <- readLines(headers.file)
   headers <- headers[which(headers != "")]
   
   # Get the Dx Pr data
 
-  dx.data.types.file <- paste0('data/r-data-types-nrd-dx-pr-grps-', year, '.txt')
+  dx.data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-dx-pr-grps-', year, '.txt')
   dx.data.types <- readLines(dx.data.types.file)
   dx.data.types <- dx.data.types[which(dx.data.types != "")]
+  dx.data.types <- paste0(substr(dx.data.types, start = 0, stop = 1), collapse="")
 
   # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-  dx.headers.file <- paste0('data/headers-nrd-dx-pr-grps-', year, '.txt')
+  dx.headers.file <- paste0('src/main/resources/metadata/headers-nrd-dx-pr-grps-', year, '.txt')
   dx.headers <- readLines(dx.headers.file)
   dx.headers <- dx.headers[which(dx.headers != "")]
   
-  # Get the Severity
-
-  severity.data.types.file <- paste0('data/r-data-types-nrd-severity-', year, '.txt')
+  # Get the Severity data types
+  severity.data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-severity-', year, '.txt')
   severity.data.types <- readLines(severity.data.types.file)
   severity.data.types <- severity.data.types[which(severity.data.types != "")]
- 
-  # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-  severity.headers.file <- paste0('data/headers-nrd-severity-', year, '.txt')
+  severity.data.types <- paste0(substr(severity.data.types, start = 0, stop = 1), collapse="")
+
+  # Copy and paste the headers from the headers.xlsx into a text file
+  severity.headers.file <- paste0('src/main/resources/metadata/headers-nrd-severity-', year, '.txt')
   severity.headers <- readLines(severity.headers.file)
   severity.headers <- severity.headers[which(severity.headers != "")]
+
+  # In case we split the files into more than 4 chunks, get the count 
+  split.file.count <- length(system(paste0('ls data/', nrdyear, '/NRD_', year, '_Core_split_*'), intern=TRUE))
+
+  core.split.files <- system(paste0('ls data/', nrdyear, '/NRD_', year, '_Core_split_*'), intern=TRUE)
+  pr.dx.split.files <- system(paste0('ls data/', nrdyear, '/NRD_', year, '_DX_PR_GRPS_split_*'), intern=TRUE)
+  severity.split.files <- system(paste0('ls data/', nrdyear, '/NRD_', year, '_Severity_split_*'), intern=TRUE)
 
   # XXX: This takes about 5 minutes to read on my Intel i7
   # Note: We specify the header names because some will be different in the database - namely KEY (nrd_KEY) and YEAR (nrd_YEAR)
   # Note: We specify the colClasses beause these are specific to the database
   
-  for(i in 0:3) {
-    
-    nrd.file <- paste0('data/NRD', year, '/NRD_', year, '_Core_split_0', i)
-    
-    print(paste0("processing split file ", nrd.file))
-    
-    nrd <- read.csv(nrd.file, 
-                    stringsAsFactors = FALSE, 
-                    header = FALSE,
-                    col.names = headers,
-                    colClasses = data.types)
+  for(i in 1:split.file.count) {
 
-
-    nrd.dx.file <- paste0('data/NRD', year, '/NRD_', year, '_DX_PR_GRPS_split_0', i)
+    print(paste0("processing split file ", core.split.files[i]))
    
-    print(paste0("processing split file ", nrd.dx.file))
+    nrd <- read_csv(core.split.files[i],
+                    col_names = headers,
+                    col_types = data.types)
 
-    nrd.dx <- read.csv(nrd.dx.file, 
-                       stringsAsFactors = FALSE, 
-                       header = FALSE,
-                       col.names = dx.headers,
-                       colClasses = dx.data.types)
 
-    nrd.severity.file <- paste0('data/NRD', year, '/NRD_', year, '_Severity_split_0', i)
+    print(paste0("processing split file ", pr.dx.split.files[i]))
+
+    nrd.dx <- read_csv(pr.dx.split.files[i], 
+                       col_names = dx.headers,
+                       col_types = dx.data.types)
+
+    print(paste0("processing split file ", severity.split.files[i]))
     
-    print(paste0("processing split file ", nrd.severity.file))
-    
-    nrd.severity <- read.csv(nrd.severity.file, 
-                       stringsAsFactors = FALSE, 
-                       header = FALSE,
-                       col.names = severity.headers,
-                       colClasses = severity.data.types)
+    nrd.severity <- read_csv(severity.split.files[i],
+                             col_names = severity.headers,
+                             col_types = severity.data.types)
 
     print("merging...")
 
     nrd.merged <- merge(merge(nrd, nrd.dx, by="key_nrd"), nrd.severity, by="key_nrd")
 
-
     nrd.merged <- nrd.merged %>% select(-hosp_nrd.x, -hosp_nrd.y)
- 
     
     # Compare what's in the CSV to all headers. 
     missing.headers <- c() 
@@ -192,7 +215,6 @@ for (year in years) {
     #q
     # Write the CSV file to the database
     print("Writing to db...")
-    
     DBI::dbWriteTable(con, "nrd", nrd.merged, append=TRUE, row.names = FALSE)
   }
 } 
@@ -202,34 +224,34 @@ for (year in years) {
 year <- 2015
 print(paste("Processing year", year))
 
-data.types.file <- paste0('data/r-data-types-nrd-core-', year, '.txt')
+data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-core-', year, '.txt')
 data.types <- readLines(data.types.file)
 data.types <- data.types[which(data.types != "")]
 
 # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-headers.file <- paste0('data/headers-nrd-core-', year, '.txt')
+headers.file <- paste0('src/main/resources/metadata/headers-nrd-core-', year, '.txt')
 headers <- readLines(headers.file)
 headers <- headers[which(headers != "")]
 
 # Get the Q1-Q3 Dx Pr data
 
-q1q3.dx.data.types.file <- paste0('data/r-data-types-nrd-dx-pr-grps-', year, '-Q1-Q3.txt')
+q1q3.dx.data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-dx-pr-grps-', year, '-Q1-Q3.txt')
 q1q3.dx.data.types <- readLines(q1q3.dx.data.types.file)
 q1q3.dx.data.types <- q1q3.dx.data.types[which(q1q3.dx.data.types != "")]
 
 # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-q1q3.dx.headers.file <- paste0('data/headers-nrd-dx-pr-grps-', year, '-Q1-Q3.txt')
+q1q3.dx.headers.file <- paste0('src/main/resources/metadata/headers-nrd-dx-pr-grps-', year, '-Q1-Q3.txt')
 q1q3.dx.headers <- readLines(q1q3.dx.headers.file)
 q1q3.dx.headers <- q1q3.dx.headers[which(q1q3.dx.headers != "")]
 
 # Get the Q1-Q3 Severity
 
-q1q3.severity.data.types.file <- paste0('data/r-data-types-nrd-severity-', year, '-Q1-Q3.txt')
+q1q3.severity.data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-severity-', year, '-Q1-Q3.txt')
 q1q3.severity.data.types <- readLines(q1q3.severity.data.types.file)
 q1q3.severity.data.types <- q1q3.severity.data.types[which(q1q3.severity.data.types != "")]
 
 # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-q1q3.severity.headers.file <- paste0('data/headers-nrd-severity-', year, '-Q1-Q3.txt')
+q1q3.severity.headers.file <- paste0('src/main/resources/metadata/headers-nrd-severity-', year, '-Q1-Q3.txt')
 q1q3.severity.headers <- readLines(q1q3.severity.headers.file)
 q1q3.severity.headers <- q1q3.severity.headers[which(q1q3.severity.headers != "")]
 
@@ -242,10 +264,6 @@ nrd <- read.csv(nrd.file,
                 header = FALSE,
                 col.names = headers,
                 colClasses = data.types)
-
-
-all.headers <- readLines('data/all-headers-nrd.txt')
-all.headers <- all.headers[which(all.headers != "")]
 
 #### Process the split DX and Severity files, merge and insert.
 for (i in 0:3) {
@@ -318,32 +336,27 @@ for (i in 0:3) {
   DBI::dbWriteTable(con, "nrd", q1q3.nrd.merged, append=TRUE, row.names = FALSE)
 } 
 
-
-
-
-
-
 #### Process Q4
 
 # Get the Q4 Dx Pr data
 
-q4.dx.data.types.file <- paste0('data/r-data-types-nrd-dx-pr-grps-', year, '-Q4.txt')
+q4.dx.data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-dx-pr-grps-', year, '-Q4.txt')
 q4.dx.data.types <- readLines(q4.dx.data.types.file)
 q4.dx.data.types <- q4.dx.data.types[which(q4.dx.data.types != "")]
 
 # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-q4.dx.headers.file <- paste0('data/headers-nrd-dx-pr-grps-', year, '-Q4.txt')
+q4.dx.headers.file <- paste0('src/main/resources/metadata/headers-nrd-dx-pr-grps-', year, '-Q4.txt')
 q4.dx.headers <- readLines(q4.dx.headers.file)
 q4.dx.headers <- q4.dx.headers[which(q4.dx.headers != "")]
 
 # Get the Q4 Severity
 
-q4.severity.data.types.file <- paste0('data/r-data-types-nrd-severity-', year, '-Q4.txt')
+q4.severity.data.types.file <- paste0('src/main/resources/metadata/r-data-types-nrd-severity-', year, '-Q4.txt')
 q4.severity.data.types <- readLines(q4.severity.data.types.file)
 q4.severity.data.types <- q4.severity.data.types[which(q4.severity.data.types != "")]
 
 # Copy and paste the headers from the 2001 tab in headers.xlsx into a text file
-q4.severity.headers.file <- paste0('data/headers-nrd-severity-', year, '-Q4.txt')
+q4.severity.headers.file <- paste0('src/main/resources/metadata/headers-nrd-severity-', year, '-Q4.txt')
 q4.severity.headers <- readLines(q4.severity.headers.file)
 q4.severity.headers <- q4.severity.headers[which(q4.severity.headers != "")]
 

@@ -45,6 +45,8 @@ library('tidyverse')
 library('DBI')
 library('beepr')
 
+setwd('/home/bdetweiler/src/Data_Science/c-diff-and-renal-failure/')
+
 source('src/main/R/util/verify-working-directory.R')
 
 tryCatch({
@@ -302,8 +304,6 @@ df <- res %>%
   mutate(year=2013, type='dx', icd=9) %>%
   bind_rows(df)
 
-dim(df)
-
 # 2013 PR
 
 icd9.pr.2013 <- readLines('data/ICD-9-CM-v31-Q4-2013/CMS31_DESC_LONG_SG.txt')
@@ -332,9 +332,6 @@ colnames(res) <- c('code', 'desc')
 df <- res %>% 
   mutate(year=2014, type='dx', icd=9) %>%
   bind_rows(df)
-
-dim(df)
-
 
 # 2014 PR
 
@@ -438,26 +435,25 @@ df <- df %>%
     (year >= 2010 & type == 'dx' & code == '38600'),  
     "Meniere's Disease, unspecified")) 
 
-
 df$desc <- gsub("'", "", df$desc)
 
 df <- df %>% 
   filter(year >= 2009) %>%
   arrange(year)
 
-
-
 # Last left off at 140276 for full df
 
-if (!file.exists('last-position.txt')) {
+if (!file.exists('src/main/resources/last-position.txt')) {
   cursor.txt <- 1
 } else {
-  cursor.txt <- readLines('last-position.txt')
+  cursor.txt <- readLines('src/main/resources/last-position.txt')
 }
 
 cursor <- as.numeric(gsub(".*= ", "", cursor.txt))
+cursor
+dim(df)
 for (i in cursor:dim(df)[1]) {
-  writeLines(paste0("Last left off at i = ", i), "last-position.txt") 
+  writeLines(paste0("Last left off at i = ", i), "src/main/resources/last-position.txt") 
   print(paste0("processing ", i, " of ", dim(df)[1], " (", (i/dim(df)[1]), ")"))
   print(df[i,])
 

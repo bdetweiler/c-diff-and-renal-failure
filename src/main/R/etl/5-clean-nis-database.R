@@ -167,3 +167,4 @@ for (column in column.names) {
   
   DBI::dbGetQuery(con, paste0("SELECT AVG(", column, ") FROM nis"))
 } 
+
